@@ -79,5 +79,20 @@ func main() {
 		}
 	}
 
-	fmt.Printf("Done. Valid: %d InValid: %d", nValid, nInvalid)
+	fmt.Printf("Part One Done. Valid: %d InValid: %d", nValid, nInvalid)
+
+	nValid, nInvalid = 0, 0
+	for _, pass := range passwords {
+		//fmt.Println("Verifying pass: ", pass)
+		bPos1 := pass.Letter == pass.Pass[pass.OccurLow-1]
+		bPos2 := pass.Letter == pass.Pass[pass.OccurHigh-1]
+		if (bPos1 || bPos2) && !(bPos1 && bPos2) { //XOR
+			nValid++
+		} else {
+			nInvalid++
+		}
+	}
+
+	fmt.Printf("Part Two Done. Valid: %d InValid: %d", nValid, nInvalid)
+
 }
