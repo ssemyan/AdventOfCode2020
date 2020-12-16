@@ -49,7 +49,7 @@ func main() {
 			}
 			//fmt.Println()
 		}
-		fmt.Println()
+		//fmt.Println()
 
 		if !bSomethingChanged {
 			nSeats := 0
@@ -71,4 +71,80 @@ func main() {
 			lines[n] = newLine
 		}
 	}
+
+	// Part Two
+	for n, line := range slines {
+		lines[n] = []rune(line)
+		newLines[n] = []rune(line)
+	}
+
+	for {
+
+		// Run new rules
+		bSomethingChanged := false
+		for nLine, line := range lines {
+			for nCol, col := range line {
+				// Ignore floor
+				if col != '.' {
+					// Count adjacent
+					nOccupied := 0
+
+					// Run through all the directions
+					for d1 := -1; d1 <= 1; d1++ {
+						for d2 := -1; d2 <= 1; d2++ {
+							// Dont do current pos
+							if !(d1 == 0 && d2 == 0) {
+								nOccupied += isOccupied(lines, nLine, nCol, d1, d2)
+							}
+						}
+					}
+
+					if col == 'L' && nOccupied == 0 {
+						newLines[nLine][nCol] = '#'
+						bSomethingChanged = true
+					}
+					if col == '#' && nOccupied >= 5 {
+						newLines[nLine][nCol] = 'L'
+						bSomethingChanged = true
+					}
+				}
+				//fmt.Printf(string(col))
+			}
+			//fmt.Println()
+		}
+		//fmt.Println()
+
+		if !bSomethingChanged {
+			nSeats := 0
+			for _, line := range newLines {
+				for _, col := range line {
+					if col == '#' {
+						nSeats++
+					}
+				}
+			}
+			fmt.Println("Total seats part two: ", nSeats)
+			break
+		}
+
+		// Copy back to original
+		for n, line := range newLines {
+			newLine := make([]rune, len(line))
+			copy(newLine, line)
+			lines[n] = newLine
+		}
+	}
+}
+
+func isOccupied(lines [][]rune, nLine int, nCol int, rowChange int, colChange int) int {
+
+	for r, c := nLine+rowChange, nCol+colChange; r >= 0 && r < len(lines) && c >= 0 && c < len(lines[nLine]); r, c = r+rowChange, c+colChange {
+		if lines[r][c] != '.' {
+			if lines[r][c] == '#' {
+				return 1
+			}
+			return 0
+		}
+	}
+	return 0
 }
