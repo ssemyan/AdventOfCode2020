@@ -3,7 +3,6 @@ package main
 import (
 	"AdventOfCode2020/mods/fileload"
 	"fmt"
-	"math"
 	"strconv"
 )
 
@@ -12,6 +11,11 @@ func main() {
 	// Read all data into string array
 	lines := fileload.Fileload("day12/data.txt")
 
+	partOne(lines)
+	partTwo(lines)
+}
+
+func partOne(lines []string) {
 	// Action N means to move north by the given value.
 	// Action S means to move south by the given value.
 	// Action E means to move east by the given value.
@@ -70,8 +74,68 @@ func main() {
 			}
 		}
 
-		fmt.Printf("Line %s %d %d x:%d y:%d\n", string(cmd), num, head, x, y)
+		//fmt.Printf("Line %s %d %d x:%d y:%d\n", string(cmd), num, head, x, y)
 	}
 
-	fmt.Println("Pos ", x, y, math.Abs(float64(x))+math.Abs(float64(y)))
+	fmt.Println("Pt 1 Pos ", x, y, Abs(x)+Abs(y))
+}
+
+func partTwo(lines []string) {
+
+	// Action N means to move the waypoint north by the given value.
+	// Action S means to move the waypoint south by the given value.
+	// Action E means to move the waypoint east by the given value.
+	// Action W means to move the waypoint west by the given value.
+	// Action L means to rotate the waypoint around the ship left (counter-clockwise) the given number of degrees.
+	// Action R means to rotate the waypoint around the ship right (clockwise) the given number of degrees.
+	// Action F means to move forward to the waypoint a number of times equal to the given value.
+
+	x, y, wpX, wpY := 0, 0, 10, -1
+	for _, line := range lines {
+		cmd := line[0]
+		num, _ := strconv.Atoi(line[1:])
+
+		switch cmd {
+		case 'N':
+			wpY -= num
+		case 'S':
+			wpY += num
+		case 'E':
+			wpX += num
+		case 'W':
+			wpX -= num
+		case 'F':
+			// Move ship and waypoint
+			x += wpX * num
+			y += wpY * num
+		case 'R', 'L':
+			// Rotate waypoint around ship
+			if (cmd == 'R' && num == 90) || (cmd == 'L' && num == 270) {
+				tmp := wpX
+				wpX = wpY * -1
+				wpY = tmp
+			} else if num == 180 {
+				wpX = wpX * -1
+				wpY = wpY * -1
+			} else { // R 270 or L 90
+				tmp := wpY
+				wpY = wpX * -1
+				wpX = tmp
+			}
+		}
+
+		//fmt.Printf("Line %s %d x:%d y:%d wpX:%d wpY:%d\n", string(cmd), num, x, y, wpX, wpY)
+	}
+
+	fmt.Println("Pt 2 Pos ", x, y, Abs(x)+Abs(y))
+}
+
+// Abs - return absolute value the easy way
+func Abs(num int) int {
+
+	if num < 0 {
+		return (-1 * num)
+	}
+	return num
+
 }
