@@ -19,35 +19,39 @@ func main() {
 		nums[i] = v
 	}
 
-	partOne(nums)
-	//partTwo(lines)
+	// partOne
+	//doGame(nums, 2020)
+	// partTwo
+	doGame(nums, 30000000)
 }
 
-func partOne(nums []int) {
+func doGame(nums []int, nMaxTurn int) {
 
-	nMaxTurn := 2020
-	spoken := make([]int, nMaxTurn)
+	lastSpoken := make(map[int]int)
 
 	// Speak all nums first
 	for i, v := range nums {
-		spoken[i] = v
+		// add all but last num
+		if i < len(nums)-1 {
+			lastSpoken[v] = i
+		}
 		//fmt.Println(i, v)
 	}
 
-	// start with next num
+	// start with last num
 	nCount := len(nums)
+	nPrev := nums[nCount-1]
 
 	for {
-		nPrev := spoken[nCount-1]
 		// Look for earlier num
 		nextNum := 0
-		for i := nCount - 2; i >= 0; i-- {
-			if spoken[i] == nPrev {
-				nextNum = nCount - i - 1
-				break
-			}
+		foundNum, exists := lastSpoken[nPrev]
+		if exists {
+			nextNum = nCount - foundNum - 1
 		}
-		spoken[nCount] = nextNum
+		lastSpoken[nPrev] = nCount - 1
+		//fmt.Println(nCount, nextNum)
+		nPrev = nextNum
 		nCount++
 
 		if nCount == nMaxTurn {
