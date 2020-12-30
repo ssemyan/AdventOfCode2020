@@ -19,6 +19,110 @@ func main() {
 		nSum += getVal(reverse(line))
 	}
 	fmt.Println("Part One Sum: ", nSum)
+
+	// Part Two
+	nSum2 := 0
+	for _, line := range lines {
+		fmt.Println("Line: ", line)
+		lineWPre := addPrecedence(line)
+		fmt.Println("Line w precedence: ", lineWPre)
+		nSum2 += getVal(reverse(lineWPre))
+	}
+	fmt.Println("Part Two Sum: ", nSum2)
+
+}
+
+func addPrecedence(line string) string {
+
+	// Use () to add precedence for + over *
+	// not the prettiest code but...
+	precChar := "+"
+	nCurrLoc := 0
+	for {
+		fmt.Println("Line: ", line)
+
+		nextAdd := strings.Index(line[nCurrLoc:], precChar)
+		if nextAdd == -1 {
+			return line
+		}
+		nextAdd += nCurrLoc
+		// Add parens before
+		if line[nextAdd-2] == ')' {
+			// walk back to find matching paren
+			rCount := 1
+			for i := nextAdd - 3; i >= 0; i-- {
+				if line[i] == ')' {
+					rCount++
+				} else if line[i] == '(' {
+					rCount--
+				}
+				if rCount == 0 {
+					line = line[:i] + "(" + line[i:]
+					break
+				}
+			}
+			if rCount != 0 {
+				panic("Did not find end of parens")
+			}
+			//line = line[:nextAdd-2] + ")" + line[nextAdd-2:]
+		} else {
+			// walk back to find end of num
+			parenPos := 0
+			for i := nextAdd - 3; i >= 0; i-- {
+				if line[i] == ' ' || line[i] == '(' {
+					parenPos = i
+					if line[i] == ' ' {
+						parenPos++
+					}
+					break
+				}
+			}
+			if parenPos == 0 {
+				line = "(" + line
+			} else {
+				line = line[:parenPos] + "(" + line[parenPos:]
+			}
+		}
+
+		// Add parens after
+		if line[nextAdd+3] == '(' {
+			// walk forward to find matching paren
+			rCount := 1
+			for i := nextAdd + 4; i < len(line); i++ {
+				if line[i] == '(' {
+					rCount++
+				} else if line[i] == ')' {
+					rCount--
+				}
+				if rCount == 0 {
+					line = line[:i] + ")" + line[i:]
+					break
+				}
+			}
+			if rCount != 0 {
+				panic("Did not find end of parens")
+			}
+			//line = line[:nextAdd+3] + "(" + line[nextAdd+3:]
+		} else {
+			// walk forward to find end of num
+			parenPos := 0
+			for i := nextAdd + 3; i < len(line); i++ {
+				if line[i] == ' ' || line[i] == ')' {
+					parenPos = i
+					break
+				}
+			}
+			if parenPos == 0 {
+				line = line + ")"
+			} else {
+				line = line[:parenPos] + ")" + line[parenPos:]
+			}
+
+		}
+
+		nCurrLoc = nextAdd + 2
+	}
+
 }
 
 func getVal(equation string) int {
