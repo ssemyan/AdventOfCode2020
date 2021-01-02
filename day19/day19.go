@@ -18,6 +18,17 @@ func main() {
 	// Read all data into string array
 	lines := fileload.Fileload("day19/data.txt")
 
+	// Part one without special rules
+	valid := doRules(lines, false)
+	fmt.Println("Part One Valid: ", valid)
+
+	valid = doRules(lines, true)
+	fmt.Println("Part Two Valid: ", valid)
+
+}
+
+func doRules(lines []string, doSpecialRules bool) int {
+
 	// Load rules
 	stage := "rules"
 	rules := make(map[int]rule)
@@ -26,16 +37,16 @@ func main() {
 	var reRule, rule42, rule31 *regexp.Regexp
 	for _, line := range lines {
 		if line == "" {
-			fmt.Println("Loaded rules: ", len(rules))
-			strRules = "^" + getRule(0, rules) + "$"
-			fmt.Println("Final Rule: ", strRules)
+			//fmt.Println("Loaded rules: ", len(rules))
+			strRules = "^" + getRule(0, rules, doSpecialRules) + "$"
+			//fmt.Println("Final Rule: ", strRules)
 			reRule = regexp.MustCompile(strRules)
 
 			// Load special rules for part two
 			rule42txt := "(" + rules[42].ruleTxt + ")"
-			fmt.Println("Rule 42: ", rule42txt)
+			//fmt.Println("Rule 42: ", rule42txt)
 			rule31txt := "(" + rules[31].ruleTxt + ")"
-			fmt.Println("Rule 31: ", rule31txt)
+			//fmt.Println("Rule 31: ", rule31txt)
 			rule42 = regexp.MustCompile(rule42txt)
 			rule31 = regexp.MustCompile(rule31txt)
 
@@ -57,7 +68,7 @@ func main() {
 			rules[idx] = newRule
 		} else {
 			// Process messages
-			fmt.Println("Processing: ", line)
+			//fmt.Println("Processing: ", line)
 
 			// Process rules
 			if reRule.MatchString(line) {
@@ -66,7 +77,7 @@ func main() {
 				matchNames := reRule.SubexpNames()
 				rule31Cnt, rule42Cnt := 0, 0
 				for i, match := range matches[1:] {
-					fmt.Println(matchNames[i+1], match)
+					//fmt.Println(matchNames[i+1], match)
 					if matchNames[i+1] == "rule11_42" || matchNames[i+1] == "rule8_42" {
 						rule42Matches := rule42.FindAllString(match, -1)
 						rule42Cnt += len(rule42Matches)
@@ -75,21 +86,22 @@ func main() {
 						rule31Cnt = len(rule31Matches)
 					}
 				}
-				if rule31Cnt < rule42Cnt {
-					fmt.Println("Valid")
+				if (rule31Cnt < rule42Cnt) || !doSpecialRules {
+					//fmt.Println("Valid")
 					validLines++
 				} else {
-					fmt.Println("Different match nums")
+					//fmt.Println("Different match nums")
 				}
 			} else {
-				fmt.Println("Invalid")
+				//fmt.Println("Invalid")
 			}
 		}
 	}
-	fmt.Println("Valid: ", validLines)
+	//fmt.Println("Valid: ", validLines)
+	return validLines
 }
 
-func getRule(ruleNum int, rules map[int]rule) string {
+func getRule(ruleNum int, rules map[int]rule, doSpecialRules bool) string {
 
 	// Get rule
 	rle := rules[ruleNum]
@@ -99,7 +111,7 @@ func getRule(ruleNum int, rules map[int]rule) string {
 
 	sides := strings.Split(rle.ruleTxt, "|")
 
-	// Make all non-capturing except rule 11
+	// Make all non-capturing
 	str := "(?:"
 
 	for i, side := range sides {
@@ -110,10 +122,10 @@ func getRule(ruleNum int, rules map[int]rule) string {
 		for _, s := range side1 {
 			if s != "" {
 				sInt, _ := strconv.Atoi(s)
-				strTemp := getRule(sInt, rules)
+				strTemp := getRule(sInt, rules, doSpecialRules)
 
-				// Handle loop in rule 11
-				if ruleNum == 11 || ruleNum == 8 {
+				// Handle loop in rules 8 and 11
+				if (ruleNum == 11 || ruleNum == 8) && doSpecialRules {
 					str += "(?P<rule" + fmt.Sprint(ruleNum) + "_" + s + ">(?:" + strTemp + ")+)"
 				} else {
 					str += strTemp
@@ -122,11 +134,6 @@ func getRule(ruleNum int, rules map[int]rule) string {
 		}
 	}
 	str += ")"
-
-	// Rule 8 loops
-	if ruleNum == 8 {
-		//str += "+"
-	}
 
 	//fmt.Println("Rule ", ruleNum, str)
 	newRule := rule{
