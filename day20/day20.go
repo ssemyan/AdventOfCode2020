@@ -9,22 +9,21 @@ import (
 
 type tile struct {
 	tileNum   int
-	topNum    uint32
-	rightNum  uint32
-	bottomNum uint32
-	leftNum   uint32
-	pos       string
+	topStr    string
+	rightStr  string
+	bottomStr string
+	leftStr   string
 }
 
 func main() {
 
 	// Read all data into string array
-	lines := fileload.Fileload("day20/testdata.txt")
+	lines := fileload.Fileload("day20/data.txt")
 
-	// Load tiles
+	// Load tiles into array
 	tiles := []tile{}
-	leftSide, rightSide := "", ""
-	lineNum, topNum, tileNumber := 0, 0, 0
+	var leftSide, rightSide, topSide string
+	var lineNum, tileNumber int
 	for n, line := range lines {
 
 		// Tile line starts new tile
@@ -36,12 +35,13 @@ func main() {
 			lineNum = 0
 			leftSide = ""
 			rightSide = ""
+			topSide = ""
 
 		} else if line != "" {
 
 			// Calculate top if at top
 			if lineNum == 0 {
-				topNum = getCode(line)
+				topSide = line
 			}
 
 			// Calculate each side
@@ -51,10 +51,10 @@ func main() {
 			if n == len(lines)-1 || lines[n+1] == "" {
 				// End of tile
 				newTile := tile{
-					bottomNum: uint32(getCode(line)),
-					leftNum:   uint32(getCode(leftSide)),
-					rightNum:  uint32(getCode(rightSide)),
-					topNum:    uint32(topNum),
+					bottomStr: line,
+					leftStr:   leftSide,
+					rightStr:  rightSide,
+					topStr:    topSide,
 					tileNum:   tileNumber,
 				}
 				tiles = append(tiles, newTile)
@@ -67,61 +67,67 @@ func main() {
 
 	// find the corner tiles (where only two edges have matches)
 	corners := make(map[int]bool)
-	cornerTotal := 0
-	for i, tile := range tiles {
+	cornerTotal := 1
+	for _, tile := range tiles {
 		bTopMatch, bBottomMatch, bLeftMatch, bRightMatch := false, false, false, false
 		nMatchedEdges := 0
-		for n, ntile := range tiles {
+		for _, ntile := range tiles {
 
-			if n != i {
+			if tile.tileNum != ntile.tileNum {
+
 				// top
-				tileSide := tile.topNum
-				if !bTopMatch && ((tileSide == (^ntile.topNum)) || (tileSide == ntile.bottomNum) || (tileSide == (^ntile.rightNum)) || (tileSide == ntile.leftNum)) {
+				if !bTopMatch && checkSide(tile.topStr, ntile) {
 					bTopMatch = true
 					nMatchedEdges++
+					//fmt.Printf("Tile %d found match on top with %d\n", tile.tileNum, ntile.tileNum)
 				}
 
 				// bottom
-				tileSide = tile.bottomNum
-				if !bBottomMatch && ((tileSide == ntile.topNum) || (tileSide == (^ntile.bottomNum)) || (tileSide == ntile.rightNum) || (tileSide == (^ntile.leftNum))) {
+				if !bBottomMatch && checkSide(tile.bottomStr, ntile) {
 					bBottomMatch = true
 					nMatchedEdges++
+					//fmt.Printf("Tile %d found match on bottom with %d\n", tile.tileNum, ntile.tileNum)
 				}
 
 				// left
-				tileSide = tile.leftNum
-				if !bLeftMatch && ((tileSide == ntile.topNum) || (tileSide == (^ntile.bottomNum)) || (tileSide == ntile.rightNum) || (tileSide == (^ntile.leftNum))) {
+				if !bLeftMatch && checkSide(tile.leftStr, ntile) {
 					bLeftMatch = true
 					nMatchedEdges++
+					//fmt.Printf("Tile %d found match on left with %d\n", tile.tileNum, ntile.tileNum)
 				}
 
 				// right
-				tileSide = tile.rightNum
-				if !bRightMatch && ((tileSide == (^ntile.topNum)) || (tileSide == ntile.bottomNum) || (tileSide == (^ntile.rightNum)) || (tileSide == ntile.leftNum)) {
+				if !bRightMatch && checkSide(tile.rightStr, ntile) {
 					bRightMatch = true
 					nMatchedEdges++
+					//fmt.Printf("Tile %d found match on right with %d\n", tile.tileNum, ntile.tileNum)
 				}
 			}
 		}
 		if nMatchedEdges == 2 {
 			// Found a corner
 			corners[tile.tileNum] = true
-			cornerTotal += tile.tileNum
+			cornerTotal *= tile.tileNum
 			fmt.Println("Found corner: ", tile.tileNum)
 		}
 	}
-	fmt.Printf("Found %d corners with a total of %d", len(corners), cornerTotal)
+	fmt.Printf("Found %d corners with a total of %d\n", len(corners), cornerTotal)
 
 }
 
-func getCode(line string) int {
-
-	// Create bit array of line to use as thumbprint for side
-	thumbprint := 0
-	for i, ch := range line {
-		if ch == '#' {
-			thumbprint += (2 ^ i)
-		}
+func rev(s string) (result string) {
+	for _, v := range s {
+		result = string(v) + result
 	}
-	return thumbprint
+	return
+}
+
+func checkSide(tileSide string, ntile tile) bool {
+
+	// can potentially match any side normal or flipped
+	return (tileSide == rev(ntile.topStr)) || (tileSide == ntile.topStr) ||
+		(tileSide == rev(ntile.bottomStr)) || (tileSide == ntile.bottomStr) ||
+		(tileSide == rev(ntile.rightStr)) || (tileSide == ntile.rightStr) ||
+		(tileSide == rev(ntile.leftStr)) || (tileSide == ntile.leftStr)
+
 }
