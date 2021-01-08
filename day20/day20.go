@@ -8,15 +8,22 @@ import (
 )
 
 type tile struct {
-	tileNum   int
-	topStr    string
-	bottomStr string
-	leftStr   string
-	rightStr  string
-	fullStr   [][]rune
+	tileNum     int
+	topStr      string
+	bottomStr   string
+	leftStr     string
+	rightStr    string
+	fullStr     [][]rune
+	rotated     bool
+	topMatch    int
+	rightMatch  int
+	bottomMatch int
+	leftMatch   int
+	isCorner    bool
 }
 
 func (t *tile) updateSides() {
+	// Update the sides so they are cached
 	t.topStr = string(t.fullStr[0])
 	t.bottomStr = string(t.fullStr[len(t.fullStr)-1])
 	t.leftStr = string(t.sideStr(true))
@@ -37,13 +44,7 @@ func (t tile) sideStr(isLeft bool) []rune {
 }
 
 func (t tile) print() {
-	for y := 0; y < 10; y++ {
-		for i := 0; i < 10; i++ {
-			fmt.Printf(string(t.fullStr[y][i]))
-		}
-		fmt.Println()
-	}
-	fmt.Println()
+	printArr(t.fullStr)
 }
 
 type tileMatch struct {
@@ -52,6 +53,7 @@ type tileMatch struct {
 	rightMatch  int
 	bottomMatch int
 	leftMatch   int
+	isCorner    bool
 }
 
 func main() {
@@ -60,7 +62,7 @@ func main() {
 	lines := fileload.Fileload("day20/testdata.txt")
 
 	// Load tiles into array
-	tiles := make(map[int]tile)
+	tiles := make(map[int]*tile)
 	var fullStr [][]rune
 	var lineNum, tileNumber int
 	for n, line := range lines {
@@ -86,7 +88,7 @@ func main() {
 					fullStr: fullStr,
 				}
 				newTile.updateSides()
-				tiles[tileNumber] = newTile
+				tiles[tileNumber] = &newTile
 			}
 			lineNum++
 		}
@@ -95,101 +97,505 @@ func main() {
 	fmt.Println("Tiles loaded: ", len(tiles))
 
 	// part one - find the corner tiles (where only two edges have matches)
-	corners := []tile{}
+	// var topLeft int
+	// cornerTotal := 1
+
+	// save the matches for part two
+	matches := make(map[int]tileMatch)
+
+	// start matching tiles from the last tile found above
+	findTileMatches(*tiles[tileNumber], tiles, matches)
+
+	// for _, tile := range tiles {
+	// 	bTopMatch, bBottomMatch, bLeftMatch, bRightMatch := false, false, false, false
+	// 	nMatchedEdges := 0
+	// 	match := tileMatch{}
+	// 	tileNums := []int{}
+
+	// 	//fmt.Println("Matching ", tile.tileNum)
+	// 	//tile.print()
+
+	// 	for _, ntile := range tiles {
+
+	// 		if tile.tileNum != ntile.tileNum {
+
+	// 			if !bTopMatch && checkSide(tile.topStr, *ntile) {
+	// 				// top
+	// 				bTopMatch = true
+	// 				nMatchedEdges++
+	// 				tileNums = append(tileNums, ntile.tileNum)
+	// 				match.topMatch = ntile.tileNum
+	// 				//fmt.Printf("Tile %d found match on top with %d\n", tile.tileNum, ntile.tileNum)
+
+	// 			} else if !bBottomMatch && checkSide(tile.bottomStr, *ntile) {
+	// 				// bottom
+	// 				bBottomMatch = true
+	// 				nMatchedEdges++
+	// 				match.bottomMatch = ntile.tileNum
+	// 				//fmt.Printf("Tile %d found match on bottom with %d\n", tile.tileNum, ntile.tileNum)
+
+	// 			} else if !bLeftMatch && checkSide(tile.leftStr, *ntile) {
+	// 				// left
+	// 				bLeftMatch = true
+	// 				nMatchedEdges++
+	// 				match.leftMatch = ntile.tileNum
+	// 				//fmt.Printf("Tile %d found match on left with %d\n", tile.tileNum, ntile.tileNum)
+
+	// 			} else if !bRightMatch && checkSide(tile.rightStr, *ntile) {
+	// 				// right
+	// 				bRightMatch = true
+	// 				nMatchedEdges++
+	// 				match.rightMatch = ntile.tileNum
+	// 				//fmt.Printf("Tile %d found match on right with %d\n", tile.tileNum, ntile.tileNum)
+	// 			}
+	// 		}
+	// 	}
+	// 	if nMatchedEdges == 2 {
+	// 		// Found a corner
+	// 		if match.topMatch == 0 && match.leftMatch == 0 {
+	// 			topLeft = tile.tileNum
+	// 		}
+	// 		cornerTotal *= tile.tileNum
+	// 		fmt.Println("Found corner: ", tile.tileNum)
+	// 	}
+	// 	matches[tile.tileNum] = match
+	// }
+	// Count corners
 	cornerTotal := 1
+	var topLeft int
+	for tileNum, match := range matches {
+		// Calculate corner
+		if match.isCorner {
+			cornerTotal *= tileNum
+		}
+		// look for top left (where we will start rotating from)
+		if match.topMatch == 0 && match.leftMatch == 0 {
+			topLeft = tileNum
+		}
+	}
+	fmt.Printf("Total of corners: %d\n", cornerTotal)
 
-	for _, tile := range tiles {
+	// Part two -- put the tiles together by rotating or flipping following previous matching
+	// start with the top left corner (mark it as set)
+	start := tiles[topLeft]
+	// start.topRotationSet = true
+	// start.bottomRotationSet = true
+	// start.leftRotationSet = true
+	// start.rightRotationSet = true
+	findMatches(*start, tiles, matches)
+
+	// Everything should be in order now so we can start looking for monsters ;-)
+
+	// make the master map - start by cloning the first tile, then adding on to it
+	fmt.Println("Starting with tile ", start.tileNum)
+	seamap := cloneArr(start.fullStr)
+	curY := 0
+	for {
+		match := matches[start.tileNum]
+
+		// add tiles to the right
+		rightMatch := match.rightMatch
+		for {
+			if rightMatch == 0 {
+				break
+			}
+			fmt.Println("Adding tile ", rightMatch)
+			tile := tiles[rightMatch]
+			fullStr := tile.fullStr
+			for y := 0; y < len(fullStr); y++ {
+				seamap[curY+y] = append(seamap[curY+y], tile.fullStr[y]...)
+			}
+			rightMatch = matches[tile.tileNum].rightMatch
+		}
+		break
+		// // add the next tile down
+		// bottomMatch := match.bottomMatch
+		// if bottomMatch == 0 {
+		// 	break
+		// }
+
+		// start = tiles[bottomMatch]
+
+		// // add the current tile
+		// nextRow := []rune{}
+		// for y := 0; y < len(start.fullStr); y++ {
+		// 	nextRow = append(nextRow, start.fullStr[y]...)
+		// }
+
+	}
+	printArr(seamap)
+}
+
+func findTileMatches(tile tile, tiles map[int]*tile, matches map[int]tileMatch) {
+
+	// Don't match previously matched tiles
+	_, exists := matches[tile.tileNum]
+	if !exists {
 		bTopMatch, bBottomMatch, bLeftMatch, bRightMatch := false, false, false, false
-		nMatchedEdges := 0
+		match := tileMatch{}
+		matchCount := 0
 
-		//fmt.Println("Matching ", tile.tileNum)
+		fmt.Println("Matching ", tile.tileNum)
 		//tile.print()
 
 		for _, ntile := range tiles {
 
 			if tile.tileNum != ntile.tileNum {
 
-				if !bTopMatch && checkSide(tile.topStr, ntile) {
-					// top
+				if !bTopMatch && checkSide(tile.topStr, *ntile) { // top
 					bTopMatch = true
-					nMatchedEdges++
+					match.topMatch = ntile.tileNum
+					matchCount++
 					//fmt.Printf("Tile %d found match on top with %d\n", tile.tileNum, ntile.tileNum)
 
-				} else if !bBottomMatch && checkSide(tile.bottomStr, ntile) {
+				} else if !bBottomMatch && checkSide(tile.bottomStr, *ntile) {
 					// bottom
 					bBottomMatch = true
-					nMatchedEdges++
+					match.bottomMatch = ntile.tileNum
+					matchCount++
 					//fmt.Printf("Tile %d found match on bottom with %d\n", tile.tileNum, ntile.tileNum)
 
-				} else if !bLeftMatch && checkSide(tile.leftStr, ntile) {
+				} else if !bLeftMatch && checkSide(tile.leftStr, *ntile) {
 					// left
 					bLeftMatch = true
-					nMatchedEdges++
+					match.leftMatch = ntile.tileNum
+					matchCount++
 					//fmt.Printf("Tile %d found match on left with %d\n", tile.tileNum, ntile.tileNum)
 
-				} else if !bRightMatch && checkSide(tile.rightStr, ntile) {
+				} else if !bRightMatch && checkSide(tile.rightStr, *ntile) {
 					// right
 					bRightMatch = true
-					nMatchedEdges++
+					match.rightMatch = ntile.tileNum
+					matchCount++
 					//fmt.Printf("Tile %d found match on right with %d\n", tile.tileNum, ntile.tileNum)
 				}
 			}
 		}
-		if nMatchedEdges == 2 {
-			// Found a corner
-			corners = append(corners, tile)
-			cornerTotal *= tile.tileNum
-			fmt.Println("Found corner: ", tile.tileNum)
+		// Corners only have two matches
+		if matchCount == 2 {
+			match.isCorner = true
+		}
+		matches[tile.tileNum] = match
+
+		// Now find matches for all the sides
+		if match.topMatch != 0 {
+			findTileMatches(*tiles[match.topMatch], tiles, matches)
+		}
+		if match.bottomMatch != 0 {
+			findTileMatches(*tiles[match.bottomMatch], tiles, matches)
+		}
+		if match.leftMatch != 0 {
+			findTileMatches(*tiles[match.leftMatch], tiles, matches)
+		}
+		if match.rightMatch != 0 {
+			findTileMatches(*tiles[match.rightMatch], tiles, matches)
 		}
 	}
-	fmt.Printf("Found %d corners with a total of %d\n", len(corners), cornerTotal)
+}
 
-	// Part two -- put the tiles together by rotating or flipping when match is found
-	for _, tile := range tiles {
-		bTopMatch, bBottomMatch, bLeftMatch, bRightMatch := false, false, false, false
-		nMatchedEdges := 0
+func rotateMatch(tile tile, tiles map[int]*tile, matches map[int]tileMatch) {
 
-		fmt.Println("Matching ", tile.tileNum)
-		tile.print()
+	fmt.Println("Rotating matches to ", tile.tileNum)
+	//tile.print()
 
-		for _, ntile := range tiles {
+	// get matches
+	matchInfo := matches[tile.tileNum]
 
-			if tile.tileNum != ntile.tileNum {
-
-				if !bTopMatch && checkSide2(tile.topStr, ntile, tiles, "top") {
-					// top
-					bTopMatch = true
-					nMatchedEdges++
-					//fmt.Printf("Tile %d found match on top with %d\n", tile.tileNum, ntile.tileNum)
-
-				} else if !bBottomMatch && checkSide2(tile.bottomStr, ntile, tiles, "bottom") {
-					// bottom
-					bBottomMatch = true
-					nMatchedEdges++
-					//fmt.Printf("Tile %d found match on bottom with %d\n", tile.tileNum, ntile.tileNum)
-
-				} else if !bLeftMatch && checkSide2(tile.leftStr, ntile, tiles, "left") {
-					// left
-					bLeftMatch = true
-					nMatchedEdges++
-					//fmt.Printf("Tile %d found match on left with %d\n", tile.tileNum, ntile.tileNum)
-
-				} else if !bRightMatch && checkSide2(tile.rightStr, ntile, tiles, "right") {
-					// right
-					bRightMatch = true
-					nMatchedEdges++
-					//fmt.Printf("Tile %d found match on right with %d\n", tile.tileNum, ntile.tileNum)
-				}
+	// top
+	flip := ""
+	rotateLeft := 0
+	if matchInfo.topMatch != 0 {
+		ntile := tiles[matchInfo.topMatch]
+		if !ntile.topRotationSet {
+			tileSide := tile.topStr
+			if tileSide == ntile.topStr {
+				flip = "horz"
+			} else if tileSide == ntile.bottomStr {
+				// nothing needed
+			} else if tileSide == ntile.leftStr {
+				rotateLeft = 1 // Rot left 90
+			} else if tileSide == ntile.rightStr {
+				rotateLeft = 3 // Rot right 90
+				flip = "vert"  // flip vertically
+			} else if tileSide == rev(ntile.bottomStr) {
+				flip = "vert" // flip vertically
+			} else if tileSide == rev(ntile.topStr) {
+				rotateLeft = 2 // rot 180
+			} else if tileSide == rev(ntile.leftStr) {
+				rotateLeft = 1 // Rot left 90
+				flip = "vert"  // flip vertically
+			} else if tileSide == rev(ntile.rightStr) {
+				rotateLeft = 3 // Rot right 90
+				flip = "vert"  // flip vertically
 			}
-		}
-		if nMatchedEdges == 2 {
-			// Found a corner
-			corners = append(corners, tile)
-			cornerTotal *= tile.tileNum
-			fmt.Println("Found corner: ", tile.tileNum)
+			ntile.topRotationSet = true
+			processTile(ntile, matches, rotateLeft, flip, tiles)
 		}
 	}
 
+	// bottom
+	flip = ""
+	rotateLeft = 0
+	if matchInfo.bottomMatch != 0 {
+		ntile := tiles[matchInfo.bottomMatch]
+		if !ntile.bottomRotationSet {
+			tileSide := tile.topStr
+			if tileSide == ntile.topStr {
+				// nothing needed
+			} else if tileSide == ntile.bottomStr {
+				flip = "horz"
+			} else if tileSide == ntile.leftStr {
+				rotateLeft = 3 // Rot right 90
+				flip = "vert"
+			} else if tileSide == ntile.rightStr {
+				rotateLeft = 1 // Rot left 90
+			} else if tileSide == rev(ntile.bottomStr) {
+				rotateLeft = 2 // rot 180
+			} else if tileSide == rev(ntile.topStr) {
+				flip = "vert" // flip vertically
+			} else if tileSide == rev(ntile.leftStr) {
+				rotateLeft = 3 // Rot left 270
+			} else if tileSide == rev(ntile.rightStr) {
+				rotateLeft = 1 // Rot left 90
+				flip = "vert"  // flip vertically
+			}
+			ntile.bottomRotationSet = true
+			processTile(ntile, matches, rotateLeft, flip, tiles)
+		}
+	}
+
+	// left
+	flip = ""
+	rotateLeft = 0
+	if matchInfo.leftMatch != 0 {
+		ntile := tiles[matchInfo.leftMatch]
+		if !ntile.leftRotationSet {
+			tileSide := tile.topStr
+			if tileSide == ntile.topStr {
+				rotateLeft = 3 // Rot left 270
+			} else if tileSide == ntile.bottomStr {
+				rotateLeft = 1 // Rot left 90
+				flip = "horz"
+			} else if tileSide == ntile.leftStr {
+				flip = "vert" // flip vertically
+			} else if tileSide == ntile.rightStr {
+				// nothing needed
+			} else if tileSide == rev(ntile.bottomStr) {
+				rotateLeft = 1 // Rot left 90
+			} else if tileSide == rev(ntile.topStr) {
+				rotateLeft = 3 // Rot left 270
+				flip = "horz"  // flip vertically
+			} else if tileSide == rev(ntile.leftStr) {
+				rotateLeft = 2 // Rot left 180
+			} else if tileSide == rev(ntile.rightStr) {
+				flip = "horz" // flip vertically
+			}
+			ntile.leftRotationSet = true
+			processTile(ntile, matches, rotateLeft, flip, tiles)
+		}
+	}
+
+	// right
+	flip = ""
+	rotateLeft = 0
+	if matchInfo.rightMatch != 0 {
+		ntile := tiles[matchInfo.rightMatch]
+		if !ntile.rightRotationSet {
+			tileSide := tile.topStr
+			if tileSide == ntile.topStr {
+				rotateLeft = 1
+				flip = "horz"
+			} else if tileSide == ntile.bottomStr {
+				rotateLeft = 3
+			} else if tileSide == ntile.leftStr {
+				// nothing needed
+			} else if tileSide == ntile.rightStr {
+				flip = "vert" // flip vertically
+			} else if tileSide == rev(ntile.bottomStr) {
+				rotateLeft = 3
+			} else if tileSide == rev(ntile.topStr) {
+				rotateLeft = 1 // Rot left 270
+				flip = "horz"  // flip vertically
+			} else if tileSide == rev(ntile.leftStr) {
+				flip = "horz" // flip vertically
+			} else if tileSide == rev(ntile.rightStr) {
+				rotateLeft = 2 // Rot left 180
+			}
+			ntile.rightRotationSet = true
+			processTile(ntile, matches, rotateLeft, flip, tiles)
+		}
+	}
+}
+
+func findMatches(tile tile, tiles map[int]*tile, matches map[int]tileMatch) {
+
+	fmt.Println("Rotating matches to ", tile.tileNum)
+	//tile.print()
+
+	// get matches
+	matchInfo := matches[tile.tileNum]
+
+	// top
+	flip := ""
+	rotateLeft := 0
+	if matchInfo.topMatch != 0 {
+		ntile := tiles[matchInfo.topMatch]
+		if !ntile.topRotationSet {
+			tileSide := tile.topStr
+			if tileSide == ntile.topStr {
+				flip = "horz"
+			} else if tileSide == ntile.bottomStr {
+				// nothing needed
+			} else if tileSide == ntile.leftStr {
+				rotateLeft = 1 // Rot left 90
+			} else if tileSide == ntile.rightStr {
+				rotateLeft = 3 // Rot right 90
+				flip = "vert"  // flip vertically
+			} else if tileSide == rev(ntile.bottomStr) {
+				flip = "vert" // flip vertically
+			} else if tileSide == rev(ntile.topStr) {
+				rotateLeft = 2 // rot 180
+			} else if tileSide == rev(ntile.leftStr) {
+				rotateLeft = 1 // Rot left 90
+				flip = "vert"  // flip vertically
+			} else if tileSide == rev(ntile.rightStr) {
+				rotateLeft = 3 // Rot right 90
+				flip = "vert"  // flip vertically
+			}
+			ntile.topRotationSet = true
+			processTile(ntile, matches, rotateLeft, flip, tiles)
+		}
+	}
+
+	// bottom
+	flip = ""
+	rotateLeft = 0
+	if matchInfo.bottomMatch != 0 {
+		ntile := tiles[matchInfo.bottomMatch]
+		if !ntile.bottomRotationSet {
+			tileSide := tile.topStr
+			if tileSide == ntile.topStr {
+				// nothing needed
+			} else if tileSide == ntile.bottomStr {
+				flip = "horz"
+			} else if tileSide == ntile.leftStr {
+				rotateLeft = 3 // Rot right 90
+				flip = "vert"
+			} else if tileSide == ntile.rightStr {
+				rotateLeft = 1 // Rot left 90
+			} else if tileSide == rev(ntile.bottomStr) {
+				rotateLeft = 2 // rot 180
+			} else if tileSide == rev(ntile.topStr) {
+				flip = "vert" // flip vertically
+			} else if tileSide == rev(ntile.leftStr) {
+				rotateLeft = 3 // Rot left 270
+			} else if tileSide == rev(ntile.rightStr) {
+				rotateLeft = 1 // Rot left 90
+				flip = "vert"  // flip vertically
+			}
+			ntile.bottomRotationSet = true
+			processTile(ntile, matches, rotateLeft, flip, tiles)
+		}
+	}
+
+	// left
+	flip = ""
+	rotateLeft = 0
+	if matchInfo.leftMatch != 0 {
+		ntile := tiles[matchInfo.leftMatch]
+		if !ntile.leftRotationSet {
+			tileSide := tile.topStr
+			if tileSide == ntile.topStr {
+				rotateLeft = 3 // Rot left 270
+			} else if tileSide == ntile.bottomStr {
+				rotateLeft = 1 // Rot left 90
+				flip = "horz"
+			} else if tileSide == ntile.leftStr {
+				flip = "vert" // flip vertically
+			} else if tileSide == ntile.rightStr {
+				// nothing needed
+			} else if tileSide == rev(ntile.bottomStr) {
+				rotateLeft = 1 // Rot left 90
+			} else if tileSide == rev(ntile.topStr) {
+				rotateLeft = 3 // Rot left 270
+				flip = "horz"  // flip vertically
+			} else if tileSide == rev(ntile.leftStr) {
+				rotateLeft = 2 // Rot left 180
+			} else if tileSide == rev(ntile.rightStr) {
+				flip = "horz" // flip vertically
+			}
+			ntile.leftRotationSet = true
+			processTile(ntile, matches, rotateLeft, flip, tiles)
+		}
+	}
+
+	// right
+	flip = ""
+	rotateLeft = 0
+	if matchInfo.rightMatch != 0 {
+		ntile := tiles[matchInfo.rightMatch]
+		if !ntile.rightRotationSet {
+			tileSide := tile.topStr
+			if tileSide == ntile.topStr {
+				rotateLeft = 1
+				flip = "horz"
+			} else if tileSide == ntile.bottomStr {
+				rotateLeft = 3
+			} else if tileSide == ntile.leftStr {
+				// nothing needed
+			} else if tileSide == ntile.rightStr {
+				flip = "vert" // flip vertically
+			} else if tileSide == rev(ntile.bottomStr) {
+				rotateLeft = 3
+			} else if tileSide == rev(ntile.topStr) {
+				rotateLeft = 1 // Rot left 270
+				flip = "horz"  // flip vertically
+			} else if tileSide == rev(ntile.leftStr) {
+				flip = "horz" // flip vertically
+			} else if tileSide == rev(ntile.rightStr) {
+				rotateLeft = 2 // Rot left 180
+			}
+			ntile.rightRotationSet = true
+			processTile(ntile, matches, rotateLeft, flip, tiles)
+		}
+	}
+}
+
+func processTile(ntile *tile, matches map[int]tileMatch, rotateLeft int, flip string, tiles map[int]*tile) {
+
+	if rotateLeft > 0 {
+		ntile.fullStr = rotate(ntile.fullStr, rotateLeft)
+	}
+	if flip != "" {
+		ntile.fullStr = doFlip(ntile.fullStr, flip)
+	}
+	//ntile.rotationSet = true
+
+	// fix the matches to match the flip and rotation
+	match := matches[ntile.tileNum]
+
+	for i := 0; i < rotateLeft; i++ {
+		tmp := match.topMatch
+		match.topMatch = match.rightMatch
+		match.rightMatch = match.bottomMatch
+		match.bottomMatch = match.leftMatch
+		match.leftMatch = tmp
+	}
+
+	if flip == "horz" {
+		tmp := match.topMatch
+		match.topMatch = match.bottomMatch
+		match.bottomMatch = tmp
+	} else if flip == "horz" {
+		tmp := match.leftMatch
+		match.leftMatch = match.rightMatch
+		match.rightMatch = tmp
+	}
+
+	matches[ntile.tileNum] = match
+
+	// now find the match for the recently processed tile
+	findMatches(*ntile, tiles, matches)
 }
 
 func rev(s string) (result string) {
@@ -374,12 +780,6 @@ func checkSide2(tileSide string, ntile tile, tiles map[int]tile, side string) bo
 	}
 
 	return true
-
-	// 	rev(ntile.topStr)) || (tileSide == ntile.topStr) ||
-	// (tileSide == rev(ntile.bottomStr)) || (tileSide == ntile.bottomStr) ||
-	// (tileSide == rev(ntile.rightStr)) || (tileSide == ntile.rightStr) ||
-	// (tileSide == rev(ntile.leftStr)) || (tileSide == ntile.leftStr)
-
 }
 
 func rotate(arr [][]rune, rotateLeft int) [][]rune {
@@ -397,15 +797,15 @@ func rotate(arr [][]rune, rotateLeft int) [][]rune {
 	return newArr
 }
 
-func flip(arr [][]rune, isVert bool) [][]rune {
+func doFlip(arr [][]rune, flipType string) [][]rune {
 
 	// Do the flip
 	newArr := cloneArr(arr)
 	for y := 0; y < len(arr); y++ {
 		for x := 0; x < len(arr[0]); x++ {
-			if isVert {
+			if flipType == "vert" {
 				newArr[y][x] = arr[y][len(arr)-x-1]
-			} else {
+			} else if flipType == "horz" {
 				newArr[y][x] = arr[len(arr)-y-1][x]
 			}
 		}
@@ -423,4 +823,14 @@ func cloneArr(arr [][]rune) [][]rune {
 		newArr[y] = line
 	}
 	return newArr
+}
+
+func printArr(arr [][]rune) {
+	for y := 0; y < len(arr); y++ {
+		for i := 0; i < len(arr[0]); i++ {
+			fmt.Printf(string(arr[y][i]))
+		}
+		fmt.Println()
+	}
+	fmt.Println()
 }
