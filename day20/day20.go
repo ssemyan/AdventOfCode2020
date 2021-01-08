@@ -157,7 +157,75 @@ func main() {
 		curY += len(start.getMap())
 	}
 
+	fmt.Println("Map complete")
 	printArr(seamap)
+
+	// now we can look for beasties
+	// build pattern for monster
+	mRows := [][]int{}
+	mRows = append(mRows, []int{19})
+	mRows = append(mRows, []int{1, 6, 7, 12, 13, 18, 19, 20})
+	mRows = append(mRows, []int{2, 5, 8, 11, 14, 17})
+
+	// Look through the map in chunks of 3x20
+	mCount := 0
+	rotCount := 0
+	flip := ""
+	for {
+		for row := 0; row < len(seamap)-3-1; row++ {
+			chunk := seamap[row:3]
+			if findMonster(chunk, mRows) {
+				mCount++
+			}
+		}
+		if mCount > 0 {
+			break
+		}
+		// rotate
+		if rotCount < 3 {
+			fmt.Println("No monsters. Rotating ", rotCount)
+			seamap = rotate(seamap, 1)
+			rotCount++
+		} else if flip == "" {
+			fmt.Println("No monsters. Flipping horz")
+			seamap = rotate(seamap, 1)
+			seamap = doFlip(seamap, "horz")
+			flip = "horz"
+			rotCount = 0
+		} else if flip == "horz" {
+			fmt.Println("No monsters. Flipping vert")
+			seamap = rotate(seamap, 1)
+			seamap = doFlip(seamap, "vert")
+			flip = "vert"
+			rotCount = 0
+		} else {
+			fmt.Println("No monsters!")
+		}
+	}
+	fmt.Println("Monster count ", mCount)
+
+}
+
+func findMonster(mapSlice [][]rune, mRows [][]int) bool {
+
+	bFound := true
+	for start := 0; start < len(mapSlice[0])-20; start += 20 {
+		for row := 0; row < len(mRows); row++ {
+			for _, bitPos := range mRows[row] {
+				if mapSlice[row][bitPos+start] != '#' {
+					bFound = false
+					break
+				}
+			}
+			if !bFound {
+				break
+			}
+		}
+		if !bFound {
+			break
+		}
+	}
+	return bFound
 }
 
 func findTileMatches(tile *tile, tiles map[int]*tile) {
