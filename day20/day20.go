@@ -61,7 +61,7 @@ func (t tile) print() {
 func main() {
 
 	// Read all data into string array
-	lines := fileload.Fileload("day20/testdata.txt")
+	lines := fileload.Fileload("day20/data.txt")
 
 	// Load tiles into array
 	tiles := make(map[int]*tile)
@@ -127,7 +127,7 @@ func main() {
 	rowMatch := topLeft
 	for {
 		// add start of the row
-		fmt.Printf("%d ", topLeft)
+		fmt.Printf("%d ", rowMatch)
 		start = tiles[rowMatch]
 		startMap := start.getMap()
 		seamap = append(seamap, startMap...)
@@ -158,7 +158,7 @@ func main() {
 	}
 
 	fmt.Println("Map complete")
-	printArr(seamap)
+	//printArr(seamap)
 
 	// now we can look for beasties
 	// build pattern for monster
@@ -167,16 +167,14 @@ func main() {
 	mRows = append(mRows, []int{1, 6, 7, 12, 13, 18, 19, 20})
 	mRows = append(mRows, []int{2, 5, 8, 11, 14, 17})
 
-	// Look through the map in chunks of 3x20
 	mCount := 0
 	rotCount := 0
 	flip := ""
 	for {
+		// Look through the map in chunks of 3 rows
 		for row := 0; row < len(seamap)-3-1; row++ {
-			chunk := seamap[row:3]
-			if findMonster(chunk, mRows) {
-				mCount++
-			}
+			chunk := seamap[row : row+3]
+			mCount += findMonster(chunk, mRows)
 		}
 		if mCount > 0 {
 			break
@@ -200,32 +198,53 @@ func main() {
 			rotCount = 0
 		} else {
 			fmt.Println("No monsters!")
+			break
 		}
 	}
 	fmt.Println("Monster count ", mCount)
 
+	// monsters take up 15 #s, count the rest and subtract the monster #
+	seaCount := -mCount * 15
+	for y := 0; y < len(seamap); y++ {
+		for x := 0; x < len(seamap[0]); x++ {
+			if seamap[y][x] == '#' {
+				seaCount++
+			}
+		}
+	}
+	//printArr(seamap)
+	fmt.Println("Seastate ", seaCount)
+
 }
 
-func findMonster(mapSlice [][]rune, mRows [][]int) bool {
+func findMonster(mapSlice [][]rune, mRows [][]int) int {
 
-	bFound := true
-	for start := 0; start < len(mapSlice[0])-20; start += 20 {
+	mCount := 0
+	fSlice := cloneArr(mapSlice)
+	for start := 0; start < len(mapSlice[0])-20; start++ {
+		bFound := true
 		for row := 0; row < len(mRows); row++ {
 			for _, bitPos := range mRows[row] {
 				if mapSlice[row][bitPos+start] != '#' {
 					bFound = false
 					break
 				}
+				fSlice[row][bitPos+start] = 'O'
 			}
 			if !bFound {
 				break
 			}
 		}
-		if !bFound {
-			break
+		if bFound {
+			// found a monster
+			mCount++
 		}
 	}
-	return bFound
+	if mCount > 0 {
+		printArr(mapSlice)
+		printArr(fSlice)
+	}
+	return mCount
 }
 
 func findTileMatches(tile *tile, tiles map[int]*tile) {
@@ -303,7 +322,6 @@ func rotateMatch(tileSide string, tile *tile, side string) {
 
 	if !tile.rotated {
 		fmt.Println("Rotating ", tile.tileNum)
-		//tile.print()
 
 		// top
 		flip := ""
@@ -316,8 +334,8 @@ func rotateMatch(tileSide string, tile *tile, side string) {
 			} else if tileSide == tile.leftStr {
 				rotateLeft = 1 // Rot left 90
 			} else if tileSide == tile.rightStr {
-				rotateLeft = 3 // Rot right 90
-				flip = "vert"  // flip vertically
+				rotateLeft = 1 // Rot right 90
+				flip = "horz"  // flip vertically
 			} else if tileSide == rev(tile.bottomStr) {
 				flip = "vert" // flip vertically
 			} else if tileSide == rev(tile.topStr) {
@@ -327,7 +345,6 @@ func rotateMatch(tileSide string, tile *tile, side string) {
 				flip = "vert"  // flip vertically
 			} else if tileSide == rev(tile.rightStr) {
 				rotateLeft = 3 // Rot right 90
-				flip = "vert"  // flip vertically
 			}
 
 		} else if side == "bottom" {
@@ -398,11 +415,34 @@ func rotateMatch(tileSide string, tile *tile, side string) {
 		if rotateLeft > 0 {
 			tile.fullStr = rotate(tile.fullStr, rotateLeft)
 		}
+
 		if flip != "" {
 			tile.fullStr = doFlip(tile.fullStr, flip)
 		}
+
 		// need to recalc the sides
 		tile.updateSides()
+
+		// verify rotation worked
+		infoStr := "Bad rotation "
+		if side == "top" {
+			if tileSide != tile.bottomStr {
+				panic(infoStr)
+			}
+		} else if side == "bottom" {
+			if tileSide != tile.topStr {
+				panic(infoStr)
+			}
+		} else if side == "left" {
+			if tileSide != tile.rightStr {
+				panic(infoStr)
+			}
+		} else if side == "right" {
+			if tileSide != tile.leftStr {
+				panic(infoStr)
+			}
+		}
+
 		tile.rotated = true
 	}
 }
@@ -434,6 +474,7 @@ func rotate(arr [][]rune, rotateLeft int) [][]rune {
 				newArr[y][x] = arr[x][len(arr)-y-1]
 			}
 		}
+		arr = newArr
 	}
 	return newArr
 }
