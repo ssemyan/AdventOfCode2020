@@ -48,88 +48,58 @@ func main() {
 
 	// Make list of ingred that also appear in other lines with same allergens
 	// kfcds, nhms, sbzzf, trh cannot contain an allergen.
-	// knownFoods := make(map[string]bool)
-	// allFoods := []string{}
-	// knownAlergens := make(map[string]string)
-	algFoods := make(map[string]map[string]bool)
+	knownFoods := make(map[string]bool)
+	allFoods := []string{}
+	knownAlergens := make(map[string]string)
 	for _, foodList := range foods {
 
-		// Add to list of alerg foods
+		// loop through aleg
 		for alg := range foodList.allerg {
-			ingList, exist := algFoods[alg]
-			if !exist {
-				ingList = make(map[string]bool)
-			}
 
+			// Find ingred that are in every instance of the aleg
 			for ing := range foodList.ingred {
-				ingList[ing] = true
+
+				bIsInEveryOther := true
+				for _, foodList2 := range foods {
+					if foodList.lineNum != foodList2.lineNum {
+						bSameAllerg := false
+						for alg := range foodList.allerg {
+							if exists(alg, foodList2.allerg) {
+								bSameAllerg = true
+								break
+							}
+						}
+
+						if bSameAllerg {
+							if !exists(ing, foodList2.ingred) {
+								bIsInEveryOther = false
+								break
+							}
+						}
+					}
+				}
+				if bIsInEveryOther {
+					fmt.Println("Known: ", ing, alg)
+					knownAlergens[alg] = ing
+				}
 			}
-			algFoods[alg] = ingList
 		}
 	}
-	fmt.Println("Known alergens: ", len(algFoods))
-
-	// 	for ing := range foodList.ingred {
-
-	// 		allFoods = append(allFoods, ing)
-
-	// 		// Look through the other foods for ingred that have same allerg
-	// 		bIsInOther := false
-	// 		bFoundSameAleg := false
-	// 		alergn := ""
-	// 		for _, foodList2 := range foods {
-	// 			if foodList.lineNum != foodList2.lineNum {
-	// 				bSameAllerg := false
-	// 				currAlg := ""
-	// 				for alg := range foodList.allerg {
-	// 					if exists(alg, foodList2.allerg) {
-	// 						bSameAllerg = true
-	// 						bFoundSameAleg = true
-	// 						currAlg = alg
-	// 						break
-	// 					}
-	// 				}
-
-	// 				if bSameAllerg {
-	// 					if exists(ing, foodList2.ingred) {
-	// 						bIsInOther = true
-	// 						if alergn == "" {
-	// 							alergn = currAlg
-	// 						}
-	// 						if alergn != currAlg {
-	// 							alergn += "_" + currAlg
-	// 						}
-	// 					} else {
-	// 						bIsInOther = false
-	// 						break
-	// 					}
-	// 				}
-	// 			}
-	// 		}
-	// 		if bIsInOther || (!bFoundSameAleg && !bIsInOther) {
-	// 			knownFoods[ing] = true
-	// 			if bIsInOther {
-	// 				fmt.Println("Known: ", ing, alergn)
-	// 				knownAlergens[ing] = alergn
-	// 			}
-	// 		}
-	// 	}
-	// }
-	// //fmt.Println("Known foods: ", len(knownFoods))
-	// for uf := range knownFoods {
-	// 	fmt.Printf("%s, ", uf)
-	// }
-	// finalFoods := []string{}
-	// for _, food := range allFoods {
-	// 	if !exists(food, knownFoods) {
-	// 		finalFoods = append(finalFoods, food)
-	// 	}
-	// }
-	// fmt.Println()
-	// fmt.Println("Final foods: ", len(finalFoods))
-	// for _, uf := range finalFoods {
-	// 	fmt.Printf("%s, ", uf)
-	// }
+	fmt.Println("Known foods: ", len(knownFoods))
+	for uf := range knownFoods {
+		fmt.Printf("%s, ", uf)
+	}
+	finalFoods := []string{}
+	for _, food := range allFoods {
+		if !exists(food, knownFoods) {
+			finalFoods = append(finalFoods, food)
+		}
+	}
+	fmt.Println()
+	fmt.Println("Final foods: ", len(finalFoods))
+	for _, uf := range finalFoods {
+		fmt.Printf("%s, ", uf)
+	}
 }
 
 func exists(key string, mp map[string]bool) bool {
