@@ -3,6 +3,7 @@ package main
 import (
 	"AdventOfCode2020/mods/fileload"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -130,9 +131,23 @@ func main() {
 	// Part One
 	fmt.Println()
 	fmt.Println("Unknown foods: ", len(unknownFoods))
-	// for _, uf := range unknownFoods {
-	// 	fmt.Printf("%s, ", uf)
-	// }
+
+	// Part two
+	// create alpha list of alergns
+	alerg := []string{}
+	for alg := range ingredAlergn {
+		alerg = append(alerg, alg)
+	}
+
+	// sort list
+	sort.Strings(alerg)
+
+	// print list
+	fmt.Println("canonical dangerous ingredient list: ")
+	for _, alg := range alerg {
+		fmt.Printf("%s,", ingredAlergn[alg])
+	}
+	fmt.Println()
 }
 
 func exists(key string, mp map[string]bool) bool {
