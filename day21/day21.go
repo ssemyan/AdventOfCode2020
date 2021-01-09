@@ -15,7 +15,7 @@ type food struct {
 func main() {
 
 	// Read all data into string array
-	lines := fileload.Fileload("day21/data.txt")
+	lines := fileload.Fileload("day21/testdata.txt")
 
 	// Load tiles into array
 	foods := []food{}
@@ -46,25 +46,31 @@ func main() {
 
 	fmt.Println("Foods loaded: ", len(foods))
 
-	// Make list of ingred that do not appear in other lines with same allergens
+	// Make list of ingred that also appear in other lines with same allergens
 	// kfcds, nhms, sbzzf, trh cannot contain an allergen.
-	unknownFoods := []string{}
-	soloFoods := make(map[string]bool)
+	knownFoods := make(map[string]bool)
+	allFoods := []string{}
+	knownAlergens := make(map[string]string)
 	for _, foodList := range foods {
 
-		// Look up ingredients in other foods
 		for ing := range foodList.ingred {
+
+			// Add to list of known foods - just overwrite if existing
+			allFoods = append(allFoods, ing)
 
 			// Look through the other foods for ingred that have same allerg
 			bIsInOther := false
 			bFoundSameAleg := false
+			alergn := ""
 			for _, foodList2 := range foods {
 				if foodList.lineNum != foodList2.lineNum {
 					bSameAllerg := false
+					currAlg := ""
 					for alg := range foodList.allerg {
 						if exists(alg, foodList2.allerg) {
 							bSameAllerg = true
 							bFoundSameAleg = true
+							currAlg = alg
 							break
 						}
 					}
@@ -72,42 +78,43 @@ func main() {
 					if bSameAllerg {
 						if exists(ing, foodList2.ingred) {
 							bIsInOther = true
+							if alergn == "" {
+								alergn = currAlg
+							}
+							if alergn != currAlg {
+								alergn += "_" + currAlg
+							}
+						} else {
+							bIsInOther = false
 							break
 						}
 					}
 				}
 			}
-			if !bIsInOther && bFoundSameAleg {
-				unknownFoods = append(unknownFoods, ing)
-			} else if !bIsInOther && !bFoundSameAleg {
-				// If we find something again that is not in any other ingred, and alerg is unique, then it is valid
-				soloFoods[ing] = true
+			if bIsInOther || (!bFoundSameAleg && !bIsInOther) {
+				knownFoods[ing] = true
+				if bIsInOther {
+					fmt.Println("Known: ", ing, alergn)
+					knownAlergens[ing] = alergn
+				}
 			}
 		}
 	}
-	fmt.Println("Unknown foods: ", len(unknownFoods))
-	for _, uf := range unknownFoods {
+	fmt.Println("Known foods: ", len(knownFoods))
+	for uf := range knownFoods {
 		fmt.Printf("%s, ", uf)
 	}
-	fmt.Println()
-	fmt.Println("Solo foods: ", len(soloFoods))
-	for uf := range soloFoods {
-		fmt.Printf("%s, ", uf)
-	}
-
 	finalFoods := []string{}
-	for _, food := range unknownFoods {
-		if !exists(food, soloFoods) {
+	for _, food := range allFoods {
+		if !exists(food, knownFoods) {
 			finalFoods = append(finalFoods, food)
 		}
 	}
-
 	fmt.Println()
 	fmt.Println("Final foods: ", len(finalFoods))
 	for _, uf := range finalFoods {
 		fmt.Printf("%s, ", uf)
 	}
-
 }
 
 func exists(key string, mp map[string]bool) bool {
