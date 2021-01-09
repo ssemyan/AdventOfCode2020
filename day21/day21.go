@@ -15,7 +15,7 @@ type food struct {
 func main() {
 
 	// Read all data into string array
-	lines := fileload.Fileload("day21/testdata.txt")
+	lines := fileload.Fileload("day21/data.txt")
 
 	// Load tiles into array
 	foods := []food{}
@@ -26,6 +26,9 @@ func main() {
 		foodArr := strings.Split(foodsStr, " ")
 		foodMap := make(map[string]bool)
 		for _, fd := range foodArr {
+			if exists(fd, foodMap) {
+				fmt.Println("Dupe: ", fd)
+			}
 			foodMap[fd] = true
 		}
 
@@ -46,63 +49,102 @@ func main() {
 
 	fmt.Println("Foods loaded: ", len(foods))
 
-	// Make list of ingred that also appear in other lines with same allergens
-	// kfcds, nhms, sbzzf, trh cannot contain an allergen.
-	knownFoods := make(map[string]bool)
-	allFoods := []string{}
-	knownAlergens := make(map[string]string)
-	for _, foodList := range foods {
+	// Make list of ingred alergns
+	ingredAlergn := make(map[string]string)
+	for {
+		// Make list of ingred that also appear in every other lines with same allergens
+		knownAlergens := make(map[string]map[string]bool)
+		for _, foodList := range foods {
 
-		// loop through aleg
-		for alg := range foodList.allerg {
+			// loop through aleg
+			for alg := range foodList.allerg {
 
-			// Find ingred that are in every instance of the aleg
-			for ing := range foodList.ingred {
+				// Find ingred that are in every instance of the aleg
+				for ing := range foodList.ingred {
 
-				bIsInEveryOther := true
-				for _, foodList2 := range foods {
-					if foodList.lineNum != foodList2.lineNum {
-						bSameAllerg := false
-						for alg := range foodList.allerg {
-							if exists(alg, foodList2.allerg) {
-								bSameAllerg = true
-								break
+					bIsInEveryOther := true
+					for _, foodList2 := range foods {
+						if foodList.lineNum != foodList2.lineNum {
+							bSameAllerg := false
+							for alg := range foodList.allerg {
+								if exists(alg, foodList2.allerg) {
+									bSameAllerg = true
+									break
+								}
 							}
-						}
 
-						if bSameAllerg {
-							if !exists(ing, foodList2.ingred) {
-								bIsInEveryOther = false
-								break
+							if bSameAllerg {
+								if !exists(ing, foodList2.ingred) {
+									bIsInEveryOther = false
+									break
+								}
 							}
 						}
 					}
-				}
-				if bIsInEveryOther {
-					fmt.Println("Known: ", ing, alg)
-					knownAlergens[alg] = ing
+					if bIsInEveryOther {
+						//fmt.Println("Known: ", ing, alg)
+						possIng, exis := knownAlergens[alg]
+						if !exis {
+							possIng = make(map[string]bool)
+						}
+						possIng[ing] = true
+						knownAlergens[alg] = possIng
+					}
 				}
 			}
 		}
-	}
-	fmt.Println("Known foods: ", len(knownFoods))
-	for uf := range knownFoods {
-		fmt.Printf("%s, ", uf)
-	}
-	finalFoods := []string{}
-	for _, food := range allFoods {
-		if !exists(food, knownFoods) {
-			finalFoods = append(finalFoods, food)
+
+		// if no alergens found, we are done
+		if len(knownAlergens) == 0 {
+			break
+		}
+
+		// Find any alg with only one ing, remove that ingred and aleg from the other foods and repeat
+		for alg, ingds := range knownAlergens {
+			if len(ingds) == 1 {
+				ing := getFirstKey(ingds)
+				fmt.Println("Found aleg match: ", alg, ing)
+				ingredAlergn[alg] = ing
+				// remove this ing, and aleg from all foods
+				for _, foodList := range foods {
+					if exists(ing, foodList.ingred) { // need if?
+						delete(foodList.ingred, ing)
+					}
+					if exists(alg, foodList.allerg) { // need if?
+						delete(foodList.allerg, alg)
+					}
+				}
+				break
+			}
 		}
 	}
-	fmt.Println()
-	fmt.Println("Final foods: ", len(finalFoods))
-	for _, uf := range finalFoods {
-		fmt.Printf("%s, ", uf)
+
+	// all the ingred left are inert
+	unknownFoods := []string{}
+	for _, foodList := range foods {
+		for ing := range foodList.ingred {
+			unknownFoods = append(unknownFoods, ing)
+		}
 	}
+
+	// Part One
+	fmt.Println()
+	fmt.Println("Unknown foods: ", len(unknownFoods))
+	// for _, uf := range unknownFoods {
+	// 	fmt.Printf("%s, ", uf)
+	// }
 }
 
 func exists(key string, mp map[string]bool) bool {
 	_, exists := mp[key]
 	return exists
+}
+
+func getFirstKey(mp map[string]bool) string {
+	retKey := ""
+	for key := range mp {
+		retKey = key
+		break
+	}
+	return retKey
 }
